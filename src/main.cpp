@@ -57,7 +57,6 @@ int main()
             chip.cycle();
         }
 
-        chip.print_display(); // shows the screen
 
         // 3. Draw chip.display
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);

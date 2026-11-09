@@ -1,7 +1,7 @@
 #pragma once
 #include <array>
 #include <cstdint>
-#include <cstdio> 
+#include <cstdio>
 #include <cstdlib>
 #include <ctime>
 
@@ -48,7 +48,7 @@ public:
             memory[0x050 + i] = fontset[i];
         }
         // random number generator
-        srand(time(nullptr));   
+        srand(time(nullptr));
     }
 
     bool load_rom(const char *path)
@@ -241,8 +241,8 @@ public:
             case 0x07:
                 V[x] = delay_timer;
                 break;
-            case 0x29: 
-                I = 0x050 + V[x] * 5;  // I = font sprite for digit V[x]
+            case 0x29:
+                I = 0x050 + V[x] * 5; // I = font sprite for digit V[x]
                 break;
             case 0x15:
                 delay_timer = V[x];
@@ -259,13 +259,32 @@ public:
                 memory[I + 2] = V[x] % 10;
                 break;
             case 0x55:
-                for (int i=0; i<=x; i++){
-                memory[I + i] = V[i];
+                for (int i = 0; i <= x; i++)
+                {
+                    memory[I + i] = V[i];
                 }
                 break;
             case 0x65:
-                for (int i=0; i<=x; i++){
-                V[i] = memory[I + i];
+                for (int i = 0; i <= x; i++)
+                {
+                    V[i] = memory[I + i];
+                }
+                break;
+            }
+            break;
+        case 0xE: // KEY opcodes: EX9E, EXA1
+            switch (kk)
+            {
+            case 0x9E: // EX9E: skip if key V[x] is pressed
+                if (keys[V[x]] == true)
+                {
+                    pc += 2;
+                }
+                break;
+            case 0xA1: // EXA1: skip if key V[x] is not pressed
+                if (keys[V[x]] == false)
+                {
+                    pc += 2;
                 }
                 break;
             }
@@ -276,21 +295,21 @@ public:
         }
     }
 
-    void print_display()
+void print_display()
+{
+    for (int y = 0; y < 32; y++)
     {
-        for (int y = 0; y < 32; y++)
+        for (int x = 0; x < 64; x++)
         {
-            for (int x = 0; x < 64; x++)
-            {
-                int slot = y * 64 + x; // 1. find this pixel's slot
-                uint8_t pixel = display[slot];
+            int slot = y * 64 + x; // 1. find this pixel's slot
+            uint8_t pixel = display[slot];
 
-                if (pixel == 1)
-                    printf("##"); // 2. on → '##', off → '  '
-                else
-                    printf("  ");
-            }
-            printf("\n");
+            if (pixel == 1)
+                printf("##"); // 2. on → '##', off → '  '
+            else
+                printf("  ");
         }
+        printf("\n");
     }
+}
 };
