@@ -3,6 +3,16 @@
 #include <cstdio>
 #include "chip8.h"
 
+// keymap[chip8_key] = the real keyboard key for it
+const SDL_Keycode keymap[16] = {
+    SDLK_x,                        // 0
+    SDLK_1, SDLK_2, SDLK_3,        // 1, 2, 3
+    SDLK_q, SDLK_w, SDLK_e,        // 4, 5, 6
+    SDLK_a, SDLK_s, SDLK_d,        // 7, 8, 9
+    SDLK_z, SDLK_c,                // A, B
+    SDLK_4, SDLK_r, SDLK_f, SDLK_v // C, D, E, F
+};
+
 int main()
 {
     Chip8 chip;
@@ -49,6 +59,17 @@ int main()
             {
                 running = false;
             }
+            // Tests CHIP-8 key against teh real key pressesd on the keyboard
+            if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP)
+            {
+                for (int i = 0; i < 16; i++)
+                {
+                    if (event.key.keysym.sym == keymap[i])
+                    {
+                        chip.keys[i] = (event.type == SDL_KEYDOWN);
+                    }
+                }
+            }
         }
 
         // 2. Run the CPU
@@ -56,7 +77,6 @@ int main()
         { // run 50 instructions to draw the logo
             chip.cycle();
         }
-
 
         // 3. Draw chip.display
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
