@@ -273,18 +273,22 @@ public:
             case 0x0A:
             {
                 bool found = false; // haven't found a pressed key yet
-                for (int i=0; i<16; i++){
-                    if (keys[i] == true){
+                for (int i = 0; i < 16; i++)
+                {
+                    if (keys[i] == true)
+                    {
                         V[x] = i;
                         found = true;
                         break;
                     }
-                }if(found == false){
-                        pc -= 2; 
+                }
+                if (found == false)
+                {
+                    pc -= 2;
                 }
                 break;
             }
-        }
+            }
             break;
         case 0xE: // KEY opcodes: EX9E, EXA1
             switch (kk)
@@ -308,22 +312,36 @@ public:
             break;
         }
     }
-
-void print_display()
-{
-    for (int y = 0; y < 32; y++)
+    
+    void tick_timers()
     {
-        for (int x = 0; x < 64; x++)
+        // count delay_timer down by 1, but only if it's above 0
+        if (delay_timer > 0)
         {
-            int slot = y * 64 + x; // 1. find this pixel's slot
-            uint8_t pixel = display[slot];
-
-            if (pixel == 1)
-                printf("##"); // 2. on → '##', off → '  '
-            else
-                printf("  ");
+            delay_timer--;
         }
-        printf("\n");
+        // count sound_timer down by 1, but only if it's above 0
+        if (sound_timer > 0)
+        {
+            sound_timer--;
+        }
     }
-}
+
+    void print_display()
+    {
+        for (int y = 0; y < 32; y++)
+        {
+            for (int x = 0; x < 64; x++)
+            {
+                int slot = y * 64 + x; // 1. find this pixel's slot
+                uint8_t pixel = display[slot];
+
+                if (pixel == 1)
+                    printf("##"); // 2. on → '##', off → '  '
+                else
+                    printf("  ");
+            }
+            printf("\n");
+        }
+    }
 };

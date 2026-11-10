@@ -59,7 +59,7 @@ int main()
             {
                 running = false;
             }
-            // Tests CHIP-8 key against teh real key pressesd on the keyboard
+            // Tests CHIP-8 key against the real key pressesd on the keyboard
             if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP)
             {
                 for (int i = 0; i < 16; i++)
@@ -78,7 +78,10 @@ int main()
             chip.cycle();
         }
 
-        // 3. Draw chip.display
+        // Tick the timers once
+        chip.tick_timers();
+
+        // 4. Draw chip.display
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
@@ -97,7 +100,7 @@ int main()
 
         SDL_RenderPresent(renderer);
 
-        // 4. Wait for the next frame
+        // 5. Wait for the next frame
         SDL_Delay(16);
     }
 
