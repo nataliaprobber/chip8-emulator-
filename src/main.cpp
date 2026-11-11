@@ -17,17 +17,15 @@ int main(int argc, char *argv[])
 {
     SDL_SetMainReady();
 
-    if (argc < 2) // test if ROM name was given
-    {
-        printf("Usage: chip8 <rom file>\n");
-        return 1;
-    }
+    bool rom_loaded = false; // default: nothing loaded yet
 
     Chip8 chip;
 
-    if (!chip.load_rom(argv[1]))
-    {
-        return 1; // loading failed, so stop
+    if (argc >= 2){
+        rom_loaded = chip.load_rom(argv[1]);
+    }
+    else{
+        printf("No ROM given. Drag a .ch8 file onto the window to start.\n");
     }
 
     // set up SDL
@@ -83,19 +81,23 @@ int main(int argc, char *argv[])
             // Checks if file is dropped 
             if (event.type == SDL_DROPFILE)
             {
-                chip.reset();                   // 1. wipe the old game
-                chip.load_rom(event.drop.file); // 2. load the DROPPED file
-                SDL_free(event.drop.file);      // 3. give the path back to SDL
+                chip.reset();                   // wipe the old game
+                rom_loaded = chip.load_rom(event.drop.file); // returns true if ROM loads into memory, false otherwise
+                SDL_free(event.drop.file);      // give the path back to SDL
             }
         }
 
-        // 2. Run the CPU
-        for (int i = 0; i < 10; i++)
-        { // run 50 instructions to draw the logo
-            chip.cycle();
-        }
+        // 2. Run the CPU + Timers (only if game is loaded)
+        if (rom_loaded)              
+        {                           
+            for (int i = 0; i < 10; i++)
+            {
+                chip.cycle();
+            }
+            chip.tick_timers();
+        }                            
 
-        // Tick the timers once
+        // 3. Tick the timers once
         chip.tick_timers();
 
         // 4. Draw chip.display
