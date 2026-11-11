@@ -17,7 +17,7 @@ int main()
 {
     Chip8 chip;
 
-    if (!chip.load_rom("4-flags.ch8"))
+    if (!chip.load_rom("pong.ch8"))
     {
         return 1; // loading failed, so stop
     }
@@ -31,7 +31,7 @@ int main()
 
     const int SCALE = 10;
     SDL_Window *window = SDL_CreateWindow("CHIP-8", SDL_WINDOWPOS_CENTERED,
-                                          SDL_WINDOWPOS_CENTERED, 64 * SCALE, 32 * SCALE, 0);
+         SDL_WINDOWPOS_CENTERED, 64 * SCALE, 32 * SCALE, SDL_WINDOW_RESIZABLE);
     if (window == NULL)
     {
         printf("SDL_CreateWindow failed: %s\n", SDL_GetError());
@@ -47,6 +47,8 @@ int main()
         SDL_Quit();
         return 1;
     }
+
+    SDL_RenderSetLogicalSize(renderer, 64, 32);
 
     bool running = true;
     while (running)
@@ -73,7 +75,7 @@ int main()
         }
 
         // 2. Run the CPU
-        for (int i = 0; i < 50; i++)
+        for (int i = 0; i < 10; i++)
         { // run 50 instructions to draw the logo
             chip.cycle();
         }
@@ -92,7 +94,7 @@ int main()
             {
                 if (chip.display[y * 64 + x] == 1)
                 {
-                    SDL_Rect px = {x * SCALE, y * SCALE, SCALE, SCALE};
+                    SDL_Rect px = {x, y, 1, 1};
                     SDL_RenderFillRect(renderer, &px);
                 }
             }
