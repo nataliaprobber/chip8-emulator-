@@ -43,12 +43,30 @@ public:
 
     Chip8()
     {
+        reset();
+        srand(time(nullptr)); // random number generator 
+    }
+
+    void reset()
+    {
+        // Wipe everything back to starting values
+        memory.fill(0);
+        V.fill(0);
+        stack.fill(0);
+        display.fill(0);
+        keys.fill(false);
+
+        I = 0;
+        pc = 0x200; // games start at 0x200
+        sp = 0;
+        delay_timer = 0;
+        sound_timer = 0;
+
+        // Reload the font (wiping memory erased it)
         for (int i = 0; i < 80; i++)
         {
             memory[0x050 + i] = fontset[i];
         }
-        // random number generator
-        srand(time(nullptr));
     }
 
     bool load_rom(const char *path)
@@ -312,7 +330,7 @@ public:
             break;
         }
     }
-    
+
     void tick_timers()
     {
         // count delay_timer down by 1, but only if it's above 0

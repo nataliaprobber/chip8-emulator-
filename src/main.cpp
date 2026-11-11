@@ -13,11 +13,19 @@ const SDL_Keycode keymap[16] = {
     SDLK_4, SDLK_r, SDLK_f, SDLK_v // C, D, E, F
 };
 
-int main()
+int main(int argc, char *argv[])
 {
+    SDL_SetMainReady();
+
+    if (argc < 2) // test if ROM name was given
+    {
+        printf("Usage: chip8 <rom file>\n");
+        return 1;
+    }
+
     Chip8 chip;
 
-    if (!chip.load_rom("pong.ch8"))
+    if (!chip.load_rom(argv[1]))
     {
         return 1; // loading failed, so stop
     }
@@ -31,7 +39,7 @@ int main()
 
     const int SCALE = 10;
     SDL_Window *window = SDL_CreateWindow("CHIP-8", SDL_WINDOWPOS_CENTERED,
-         SDL_WINDOWPOS_CENTERED, 64 * SCALE, 32 * SCALE, SDL_WINDOW_RESIZABLE);
+                                          SDL_WINDOWPOS_CENTERED, 64 * SCALE, 32 * SCALE, SDL_WINDOW_RESIZABLE);
     if (window == NULL)
     {
         printf("SDL_CreateWindow failed: %s\n", SDL_GetError());
@@ -71,6 +79,13 @@ int main()
                         chip.keys[i] = (event.type == SDL_KEYDOWN);
                     }
                 }
+            }
+            // Checks if file is dropped 
+            if (event.type == SDL_DROPFILE)
+            {
+                chip.reset();                   // 1. wipe the old game
+                chip.load_rom(event.drop.file); // 2. load the DROPPED file
+                SDL_free(event.drop.file);      // 3. give the path back to SDL
             }
         }
 
