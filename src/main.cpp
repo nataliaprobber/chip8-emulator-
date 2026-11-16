@@ -2,6 +2,9 @@
 #include <SDL.h>
 #include <cstdio>
 #include "chip8.h"
+#include "imgui.h"
+#include "imgui_impl_sdl2.h"
+#include "imgui_impl_sdlrenderer2.h"
 
 // keymap[chip8_key] = the real keyboard key for it
 const SDL_Keycode keymap[16] = {
@@ -54,8 +57,6 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    SDL_RenderSetLogicalSize(renderer, 64, 32);
-
     // Open the audio device (the "window" for your speakers)
     SDL_AudioSpec want{};
     want.freq     = 44100;          // 44,100 samples per second
@@ -74,6 +75,14 @@ int main(int argc, char *argv[])
         SDL_PauseAudioDevice(audio, 0);   // devices start paused; 0 = start playing
     }
 
+    // Set up ImGui
+    IMGUI_CHECKVERSION();                              // sanity check: headers match the library
+    ImGui::CreateContext();                            // ImGui's internal state (like SDL_Init)
+    ImGui::StyleColorsDark();                          // pick a theme
+    ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);  // adapter 1: SDL events → ImGui
+    ImGui_ImplSDLRenderer2_Init(renderer);             // adapter 2: ImGui → SDL drawing
+
+
     bool running = true;
     int wave_pos = 0; 
 
@@ -83,6 +92,8 @@ int main(int argc, char *argv[])
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
+            ImGui_ImplSDL2_ProcessEvent(&event);
+
             if (event.type == SDL_QUIT)
             {
                 running = false;
@@ -139,29 +150,55 @@ int main(int argc, char *argv[])
             SDL_QueueAudio(audio, samples, sizeof(samples));
         }
 
-        // 4. Draw chip.display
+        // 4. ImGui: describe this frame's UI
+        ImGui_ImplSDLRenderer2_NewFrame();
+        ImGui_ImplSDL2_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::ShowDemoWindow();    // TEST: ImGui's built-in demo
+
+        ImGui::Render();
+
+        // 5. Draw chip.display
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
+        // Fit the 64x32 game into the current window size
+        int win_w, win_h;
+        SDL_GetRendererOutputSize(renderer, &win_w, &win_h);
+        int scale = win_w / 64;
+        if (win_h / 32 < scale) scale = win_h / 32;   // pick the smaller fit
+        int off_x = (win_w - 64 * scale) / 2;        // center left-right
+        int off_y = (win_h - 32 * scale) / 2;        // center top-bottom
+
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         for (int y = 0; y < 32; y++)
         {
             for (int x = 0; x < 64; x++)
             {
                 if (chip.display[y * 64 + x] == 1)
                 {
-                    SDL_Rect px = {x, y, 1, 1};
+                    SDL_Rect px = {off_x + x * scale, off_y + y * scale, scale, scale};
                     SDL_RenderFillRect(renderer, &px);
                 }
             }
         }
 
+        // Draw ImGui ON TOP of the game
+        ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
+
         SDL_RenderPresent(renderer);
 
-        // 5. Wait for the next frame
+        // 6. Wait for the next frame
         SDL_Delay(16);
     }
 
+// Clean up, in reverse order of creation
+    ImGui_ImplSDLRenderer2_Shutdown();   // undo adapter 2
+    ImGui_ImplSDL2_Shutdown();           // undo adapter 1
+    ImGui::DestroyContext();             // undo CreateContext
+
+    SDL_CloseAudioDevice(audio);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
