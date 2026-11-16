@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     }
 
     // set up SDL
-    if (SDL_Init(SDL_INIT_VIDEO) != 0)
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0)
     {
         printf("SDL_Init failed: %s\n", SDL_GetError());
         return 1;
@@ -56,7 +56,27 @@ int main(int argc, char *argv[])
 
     SDL_RenderSetLogicalSize(renderer, 64, 32);
 
+    // Open the audio device (the "window" for your speakers)
+    SDL_AudioSpec want{};
+    want.freq     = 44100;          // 44,100 samples per second
+    want.format   = AUDIO_S16SYS;   // each sample: signed 16-bit number
+    want.channels = 1;              // mono: one beep, one channel
+    want.samples  = 512;
+    want.callback = NULL;           // we'll push samples in with SDL_QueueAudio
+
+    SDL_AudioDeviceID audio = SDL_OpenAudioDevice(NULL, 0, &want, NULL, 0);
+    if (audio == 0)
+    {
+        printf("Warning: no audio (%s)\n", SDL_GetError());   // keep running, just silent
+    }
+    else
+    {
+        SDL_PauseAudioDevice(audio, 0);   // devices start paused; 0 = start playing
+    }
+
     bool running = true;
+    int wave_pos = 0; 
+
     while (running)
     {
         // 1. Events
@@ -97,8 +117,27 @@ int main(int argc, char *argv[])
             chip.tick_timers();
         }                            
 
-        // 3. Tick the timers once
-        chip.tick_timers();
+        // 3. Sound: beep while the sound timer is running
+        if (audio != 0 && chip.sound_timer > 0)
+        {
+            int16_t samples[735];                 // one frame of sound
+            for (int i = 0; i < 735; i++)
+            {
+            for (int i = 0; i < 735; i++)
+            {
+                if (wave_pos < 50)
+                {
+                    samples[i] = 3000;     // first half: cone pushed out
+                }
+                else
+                {
+                    samples[i] = -3000;    // second half: cone pulled in
+                }
+                wave_pos = (wave_pos + 1) % 100;
+            }
+            }
+            SDL_QueueAudio(audio, samples, sizeof(samples));
+        }
 
         // 4. Draw chip.display
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
