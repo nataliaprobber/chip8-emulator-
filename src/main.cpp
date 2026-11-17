@@ -1,10 +1,15 @@
 #define SDL_MAIN_HANDLED
 #include <SDL.h>
 #include <cstdio>
+#include <string>
 #include "chip8.h"
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
+#include <filesystem>
+#include <vector>
+
+namespace fs = std::filesystem;
 
 // keymap[chip8_key] = the real keyboard key for it
 const SDL_Keycode keymap[16] = {
@@ -21,13 +26,17 @@ int main(int argc, char *argv[])
     SDL_SetMainReady();
 
     bool rom_loaded = false; // default: nothing loaded yet
+    std::string current_rom; // path of the loaded ROM (empty = none)
 
     Chip8 chip;
 
-    if (argc >= 2){
-        rom_loaded = chip.load_rom(argv[1]);
+    if (argc >= 2)
+    {
+        current_rom = argv[1];
+        rom_loaded = chip.load_rom(current_rom.c_str());
     }
-    else{
+    else
+    {
         printf("No ROM given. Drag a .ch8 file onto the window to start.\n");
     }
 
@@ -59,32 +68,41 @@ int main(int argc, char *argv[])
 
     // Open the audio device (the "window" for your speakers)
     SDL_AudioSpec want{};
-    want.freq     = 44100;          // 44,100 samples per second
-    want.format   = AUDIO_S16SYS;   // each sample: signed 16-bit number
-    want.channels = 1;              // mono: one beep, one channel
-    want.samples  = 512;
-    want.callback = NULL;           // we'll push samples in with SDL_QueueAudio
+    want.freq = 44100;          // 44,100 samples per second
+    want.format = AUDIO_S16SYS; // each sample: signed 16-bit number
+    want.channels = 1;          // mono: one beep, one channel
+    want.samples = 512;
+    want.callback = NULL; // we'll push samples in with SDL_QueueAudio
 
     SDL_AudioDeviceID audio = SDL_OpenAudioDevice(NULL, 0, &want, NULL, 0);
     if (audio == 0)
     {
-        printf("Warning: no audio (%s)\n", SDL_GetError());   // keep running, just silent
+        printf("Warning: no audio (%s)\n", SDL_GetError()); // keep running, just silent
     }
     else
     {
-        SDL_PauseAudioDevice(audio, 0);   // devices start paused; 0 = start playing
+        SDL_PauseAudioDevice(audio, 0); // devices start paused; 0 = start playing
     }
 
     // Set up ImGui
-    IMGUI_CHECKVERSION();                              // sanity check: headers match the library
-    ImGui::CreateContext();                            // ImGui's internal state (like SDL_Init)
-    ImGui::StyleColorsDark();                          // pick a theme
-    ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);  // adapter 1: SDL events → ImGui
-    ImGui_ImplSDLRenderer2_Init(renderer);             // adapter 2: ImGui → SDL drawing
+    IMGUI_CHECKVERSION();                                // sanity check: headers match the library
+    ImGui::CreateContext();                              // ImGui's internal state (like SDL_Init)
+    ImGui::StyleColorsDark();                            // pick a theme
+    ImGui_ImplSDL2_InitForSDLRenderer(window, renderer); // adapter 1: SDL events → ImGui
+    ImGui_ImplSDLRenderer2_Init(renderer);               // adapter 2: ImGui → SDL drawing
 
+    // Find every ROM in the roms folder (runs once, at startup)
+    std::vector<std::string> rom_list;
+    for (const auto &entry : fs::directory_iterator("roms"))
+    {
+        if (entry.path().extension() == ".ch8")
+        {
+            rom_list.push_back(entry.path().string());
+        }
+    }
 
     bool running = true;
-    int wave_pos = 0; 
+    int wave_pos = 0;
 
     while (running)
     {
@@ -109,43 +127,44 @@ int main(int argc, char *argv[])
                     }
                 }
             }
-            // Checks if file is dropped 
+            // Checks if file is dropped
             if (event.type == SDL_DROPFILE)
             {
-                chip.reset();                   // wipe the old game
+                current_rom = event.drop.file;               // copy the path before freeing it
+                chip.reset();                                // wipe the old game
                 rom_loaded = chip.load_rom(event.drop.file); // returns true if ROM loads into memory, false otherwise
-                SDL_free(event.drop.file);      // give the path back to SDL
+                SDL_free(event.drop.file);                   // give the path back to SDL
             }
         }
 
         // 2. Run the CPU + Timers (only if game is loaded)
-        if (rom_loaded)              
-        {                           
+        if (rom_loaded)
+        {
             for (int i = 0; i < 10; i++)
             {
                 chip.cycle();
             }
             chip.tick_timers();
-        }                            
+        }
 
         // 3. Sound: beep while the sound timer is running
         if (audio != 0 && chip.sound_timer > 0)
         {
-            int16_t samples[735];                 // one frame of sound
+            int16_t samples[735]; // one frame of sound
             for (int i = 0; i < 735; i++)
             {
-            for (int i = 0; i < 735; i++)
-            {
-                if (wave_pos < 50)
+                for (int i = 0; i < 735; i++)
                 {
-                    samples[i] = 3000;     // first half: cone pushed out
+                    if (wave_pos < 50)
+                    {
+                        samples[i] = 3000; // first half: cone pushed out
+                    }
+                    else
+                    {
+                        samples[i] = -3000; // second half: cone pulled in
+                    }
+                    wave_pos = (wave_pos + 1) % 100;
                 }
-                else
-                {
-                    samples[i] = -3000;    // second half: cone pulled in
-                }
-                wave_pos = (wave_pos + 1) % 100;
-            }
             }
             SDL_QueueAudio(audio, samples, sizeof(samples));
         }
@@ -155,7 +174,43 @@ int main(int argc, char *argv[])
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::ShowDemoWindow();    // TEST: ImGui's built-in demo
+        if (ImGui::BeginMainMenuBar())
+        {
+            if (ImGui::BeginMenu("File"))
+            {
+                if (ImGui::MenuItem("Reset"))
+                {
+                    chip.reset();
+                    rom_loaded = chip.load_rom(current_rom.c_str());
+                }
+                if (ImGui::MenuItem("Quit"))
+                {
+                    running = false;
+                }
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Roms"))      // ← NEW: right after File's EndMenu
+            {
+                for (const std::string &path : rom_list)
+                {
+                    // make a clean display name: "roms\pong.ch8" → "pong"
+                    std::string name = fs::path(path).stem().string();
+
+                    // show it as a menu item; true on the frame it's clicked
+                    if (ImGui::MenuItem(name.c_str()))
+                    {
+                        // load the clicked game (same as drop block)
+                        current_rom = path;
+                        chip.reset();
+                        rom_loaded = chip.load_rom(current_rom.c_str());
+                    }
+                }
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMainMenuBar();
+        }
 
         ImGui::Render();
 
@@ -167,9 +222,10 @@ int main(int argc, char *argv[])
         int win_w, win_h;
         SDL_GetRendererOutputSize(renderer, &win_w, &win_h);
         int scale = win_w / 64;
-        if (win_h / 32 < scale) scale = win_h / 32;   // pick the smaller fit
-        int off_x = (win_w - 64 * scale) / 2;        // center left-right
-        int off_y = (win_h - 32 * scale) / 2;        // center top-bottom
+        if (win_h / 32 < scale)
+            scale = win_h / 32;               // pick the smaller fit
+        int off_x = (win_w - 64 * scale) / 2; // center left-right
+        int off_y = (win_h - 32 * scale) / 2; // center top-bottom
 
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         for (int y = 0; y < 32; y++)
@@ -193,10 +249,10 @@ int main(int argc, char *argv[])
         SDL_Delay(16);
     }
 
-// Clean up, in reverse order of creation
-    ImGui_ImplSDLRenderer2_Shutdown();   // undo adapter 2
-    ImGui_ImplSDL2_Shutdown();           // undo adapter 1
-    ImGui::DestroyContext();             // undo CreateContext
+    // Clean up, in reverse order of creation
+    ImGui_ImplSDLRenderer2_Shutdown(); // undo adapter 2
+    ImGui_ImplSDL2_Shutdown();         // undo adapter 1
+    ImGui::DestroyContext();           // undo CreateContext
 
     SDL_CloseAudioDevice(audio);
     SDL_DestroyRenderer(renderer);
