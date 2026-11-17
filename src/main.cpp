@@ -93,6 +93,12 @@ int main(int argc, char *argv[])
 
     // Find every ROM in the roms folder (runs once, at startup)
     std::vector<std::string> rom_list;
+
+    if (!fs::exists("roms")){
+        fs::create_directory("roms");
+        printf("Created a 'roms' folder. Put .ch8 files in it.\n");
+    }
+
     for (const auto &entry : fs::directory_iterator("roms"))
     {
         if (entry.path().extension() == ".ch8")
@@ -191,10 +197,9 @@ int main(int argc, char *argv[])
                 ImGui::EndMenu();
             }
 
-            if (ImGui::BeginMenu("Roms"))      // ← NEW: right after File's EndMenu
+            if (ImGui::BeginMenu("Roms"))
             {
-                for (const std::string &path : rom_list)
-                {
+                for (const std::string &path : rom_list){
                     // make a clean display name: "roms\pong.ch8" → "pong"
                     std::string name = fs::path(path).stem().string();
 
@@ -207,6 +212,11 @@ int main(int argc, char *argv[])
                         rom_loaded = chip.load_rom(current_rom.c_str());
                     }
                 }
+
+                if (rom_list.empty()){
+                    ImGui::MenuItem("(no ROMs found in roms/)", nullptr, false, false);
+                }
+
                 ImGui::EndMenu();
             }
 
