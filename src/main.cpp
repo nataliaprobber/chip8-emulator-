@@ -102,6 +102,7 @@ int main(int argc, char *argv[])
     }
 
     bool running = true;
+    bool paused = false;      // starts unpaused, so games run normally
     int wave_pos = 0;
 
     while (running)
@@ -138,7 +139,7 @@ int main(int argc, char *argv[])
         }
 
         // 2. Run the CPU + Timers (only if game is loaded)
-        if (rom_loaded)
+        if (rom_loaded && !paused)
         {
             for (int i = 0; i < 10; i++)
             {
@@ -212,9 +213,44 @@ int main(int argc, char *argv[])
             ImGui::EndMainMenuBar();
         }
 
+        // 5. Debug view: CPU state
+        ImGui::Begin("CPU");
+
+        ImGui::Text("PC: 0x%04X", chip.pc);
+        ImGui::Text("I:  0x%04X", chip.I);
+        ImGui::Text("SP: %d", chip.sp);
+        ImGui::Text("DT: %d", chip.delay_timer);
+        ImGui::Text("ST: %d", chip.sound_timer);
+
+        ImGui::Separator();          // a horizontal line, to divide the sections
+
+        for (int i = 0; i < 16; i++)
+        {
+            ImGui::Text("V%X: %02X", i, chip.V[i]);
+        }
+
+        ImGui::Separator();                                 
+
+        if (ImGui::Button(paused ? "Resume" : "Pause"))    
+        {
+            paused = !paused;
+        }
+        
+        ImGui::SameLine();             // put the next button beside this one, not below
+
+        if (ImGui::Button("Step"))     // NEW
+        {
+            if (paused && rom_loaded)
+            {
+                chip.cycle();              // run one instruction
+            }
+        }
+
+        ImGui::End();
+
         ImGui::Render();
 
-        // 5. Draw chip.display
+        // Draw chip.display
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
@@ -245,7 +281,7 @@ int main(int argc, char *argv[])
 
         SDL_RenderPresent(renderer);
 
-        // 6. Wait for the next frame
+        // Wait for the next frame
         SDL_Delay(16);
     }
 
